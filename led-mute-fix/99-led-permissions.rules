@@ -1,0 +1,2 @@
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="platform::mute", RUN+="/bin/chgrp input /sys/class/leds/platform::mute/brightness", RUN+="/bin/chmod g+w /sys/class/leds/platform::mute/brightness"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="platform::micmute", RUN+="/bin/chgrp input /sys/class/leds/platform::micmute/brightness", RUN+="/bin/chmod g+w /sys/class/leds/platform::micmute/brightness"
