@@ -1,82 +1,114 @@
 # LED Mute Fix (F4 / Fn+F4)
 
-## Masalah
+## Problem
 
-Di ThinkPad E14 Gen 2 dengan Arch + Hyprland, tombol mute (F4) berfungsi mute
-audio dengan benar lewat `wpctl`, tapi LED indikator mute di keyboard tidak
-menyala. Ini terjadi karena `thinkpad_acpi` sudah mengekspos LED-nya lewat
-sysfs (`/sys/class/leds/platform::mute` dan `platform::micmute`), tapi tidak
-ada yang menjembatani status mute PipeWire/PulseAudio ke LED tersebut —
-window manager minimal seperti Hyprland tidak melakukan ini secara otomatis
-(beda dengan KDE Plasma/GNOME yang biasanya sudah punya integrasi bawaan).
+On the ThinkPad E14 Gen 2 running Arch Linux with Hyprland, the mute key
+(F4) correctly mutes the audio through `wpctl`, but the keyboard's mute
+indicator LED does not turn on.
 
-## Cara kerja fix ini
+This happens because `thinkpad_acpi` exposes the LEDs through sysfs:
 
-1. Script `toggle-mute.sh` dan `toggle-micmute.sh` menggantikan pemanggilan
-   `wpctl set-mute ... toggle` langsung di keybind. Script toggle audio
-   seperti biasa, lalu cek status mute dan tulis `1`/`0` ke file LED terkait
-   di sysfs.
-2. udev rule `99-led-permissions.rules` memberi izin grup `input` untuk
-   menulis ke file LED tersebut, supaya script tidak perlu `sudo` setiap
-   toggle.
+```text
+/sys/class/leds/platform::mute
+/sys/class/leds/platform::micmute
+```
 
-## Instalasi
+However, nothing automatically connects the PipeWire/PulseAudio mute status
+to these LEDs. Minimal window managers such as Hyprland do not provide this
+integration by default, unlike KDE Plasma or GNOME, which usually include
+built-in support.
 
-1. Cek dulu apakah LED-nya ada di sistem kamu:
+## How This Fix Works
 
-   ```bash
-   ls /sys/class/leds/ | grep mute
-   ```
+1. The `toggle-mute.sh` and `toggle-micmute.sh` scripts replace direct
+   `wpctl set-mute ... toggle` commands in the keybinds.
+2. Each script toggles the audio state, checks the mute status, and writes
+   `1` or `0` to the corresponding sysfs LED brightness file.
+3. The `99-led-permissions.rules` udev rule grants the `input` group permission
+   to write to the LED files, so the scripts do not need `sudo` every time
+   they are triggered.
 
-   Harus muncul `platform::mute` dan `platform::micmute`. Kalau nama beda,
-   sesuaikan `LED_PATH` di kedua script.
+## Installation
 
-2. Copy script ke lokasi keybind kamu, misalnya:
+### 1. Check whether the LEDs exist
 
-   ```bash
-   cp toggle-mute.sh toggle-micmute.sh ~/.config/hypr/hyprland/scripts/
-   chmod +x ~/.config/hypr/hyprland/scripts/toggle-mute.sh
-   chmod +x ~/.config/hypr/hyprland/scripts/toggle-micmute.sh
-   ```
-
-3. Pasang udev rule:
-
-   ```bash
-   sudo cp 99-led-permissions.rules /etc/udev/rules.d/
-   sudo usermod -aG input $USER
-   sudo udevadm control --reload-rules
-   sudo udevadm trigger
-   ```
-
-4. **Reboot** (perubahan keanggotaan grup butuh sesi login baru).
-
-5. Update keybind mute di config Hyprland kamu supaya memanggil script ini,
-   bukan `wpctl` langsung. Contoh untuk config berbasis Lua
-   (`keybinds.lua`):
-
-   ```lua
-   hl.bind("XF86AudioMute", hl.dsp.exec_cmd(hyprScripts .. "/toggle-mute.sh"), { locked = true })
-   hl.bind("ALT + XF86AudioMute", hl.dsp.exec_cmd(hyprScripts .. "/toggle-micmute.sh"), { locked = true })
-   ```
-
-   Untuk config `hyprland.conf` biasa:
-
-   ```
-   bind = , XF86AudioMute, exec, ~/.config/hypr/scripts/toggle-mute.sh
-   bind = ALT, XF86AudioMute, exec, ~/.config/hypr/scripts/toggle-micmute.sh
-   ```
-
-## Debug
-
-Kalau LED masih tidak menyala setelah reboot:
+Run:
 
 ```bash
-# Pastikan sudah masuk grup input
-groups
+ls /sys/class/leds/ | grep mute
+```
 
-# Tes tulis manual tanpa sudo
+The output should contain:
+
+```text
+platform::mute
+platform::micmute
+```
+
+If the names are different, adjust the `LED_PATH` variable in both scripts.
+
+### 2. Copy the scripts
+
+Copy the scripts to your keybind directory. For example:
+
+```bash
+cp toggle-mute.sh toggle-micmute.sh ~/.config/hypr/hyprland/scripts/
+chmod +x ~/.config/hypr/hyprland/scripts/toggle-mute.sh
+chmod +x ~/.config/hypr/hyprland/scripts/toggle-micmute.sh
+```
+
+### 3. Install the udev rule
+
+```bash
+sudo cp 99-led-permissions.rules /etc/udev/rules.d/
+sudo usermod -aG input $USER
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+### 4. Reboot
+
+A reboot is required because the group membership change takes effect after
+starting a new login session.
+
+### 5. Update the Hyprland keybinds
+
+Configure your mute keybinds to call these scripts instead of calling
+`wpctl` directly.
+
+For a Lua-based configuration such as `keybinds.lua`:
+
+```lua
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd(hyprScripts .. "/toggle-mute.sh"), { locked = true })
+hl.bind("ALT + XF86AudioMute", hl.dsp.exec_cmd(hyprScripts .. "/toggle-micmute.sh"), { locked = true })
+```
+
+For a regular `hyprland.conf`:
+
+```ini
+bind = , XF86AudioMute, exec, ~/.config/hypr/scripts/toggle-mute.sh
+bind = ALT, XF86AudioMute, exec, ~/.config/hypr/scripts/toggle-micmute.sh
+```
+
+## Debugging
+
+If the LED still does not turn on after reboot, check whether your user is
+a member of the `input` group:
+
+```bash
+groups
+```
+
+Then test the LED manually without `sudo`:
+
+```bash
 echo 1 > /sys/class/leds/platform::mute/brightness
 ```
 
-Kalau baris kedua gagal dengan "Permission denied", berarti udev rule belum
-aktif dengan benar — cek ulang isi rule dan jalankan `udevadm trigger` lagi.
+If the command fails with `Permission denied`, the udev rule is not active
+correctly. Check the rule and run:
+
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```

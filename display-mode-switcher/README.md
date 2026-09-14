@@ -1,49 +1,52 @@
 # Display Mode Switcher
 
-Script menu (mirip Windows+P) untuk pindah mode display di Hyprland lewat
-`fuzzel` sebagai picker, antara layar laptop dan monitor eksternal via HDMI.
+A Windows+P-like display mode menu for Hyprland. It uses `fuzzel` as the
+picker to switch between the laptop display and an external monitor
+connected through HDMI.
 
-## Fitur
+## Features
 
-Menampilkan 4 pilihan lewat `fuzzel --dmenu`:
+The script provides four options through `fuzzel --dmenu`:
 
-- **PC screen only** — hanya layar laptop aktif
-- **Duplicate** — mirror layar laptop ke monitor eksternal
-- **Extend** — layar laptop + monitor eksternal disusun berdampingan
-  (eksternal di sebelah kanan)
-- **Second screen only** — hanya monitor eksternal aktif
+- **PC screen only** — only the laptop display is active
+- **Duplicate** — mirrors the laptop display to the external monitor
+- **Extend** — uses both displays side by side, with the external monitor
+  positioned on the right
+- **Second screen only** — only the external monitor is active
 
-Script otomatis cek dulu apakah monitor eksternal terdeteksi lewat
-`hyprctl monitors all`; kalau tidak, muncul notifikasi dan script berhenti.
+The script first checks whether an external monitor is detected through
+`hyprctl monitors all`. If no external monitor is detected, it displays a
+notification and exits.
 
-## Requirement
+## Requirements
 
-- Hyprland dengan output `eDP-1` (laptop) dan `HDMI-A-1` (eksternal) —
-  sesuaikan nama output di variabel `LAPTOP` dan `EXTERNAL` di awal script
-  kalau berbeda. Cek nama output dengan:
+- Hyprland with the `eDP-1` laptop output and `HDMI-A-1` external output.
+  Adjust the `LAPTOP` and `EXTERNAL` variables at the beginning of the script
+  if your output names are different. Check your output names with:
 
   ```bash
   hyprctl monitors all
   ```
 
-- `fuzzel` (dmenu launcher)
-- `notify-send` (biasanya dari `libnotify`)
+- `fuzzel` — dmenu launcher
+- `notify-send` — usually provided by `libnotify`
 
-## Instalasi
+## Installation
 
 ```bash
 cp display-mode.sh ~/.config/hypr/hyprland/scripts/
 chmod +x ~/.config/hypr/hyprland/scripts/display-mode.sh
 ```
 
-Lalu bind ke tombol pilihan, misalnya di `keybinds.lua`:
+Then bind the script to a key of your choice. For example, in
+`keybinds.lua`:
 
 ```lua
 hl.bind("SUPER + P", hl.dsp.exec_cmd(hyprScripts .. "/display-mode.sh"))
 ```
 
-Atau di `hyprland.conf` biasa:
+Or in a regular `hyprland.conf`:
 
-```
+```ini
 bind = SUPER, P, exec, ~/.config/hypr/scripts/display-mode.sh
 ```
